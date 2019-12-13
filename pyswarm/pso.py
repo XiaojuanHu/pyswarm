@@ -19,7 +19,7 @@ def _cons_f_ieqcons_wrapper(f_ieqcons, args, kwargs, x):
 def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={}, 
         swarmsize=100, omega=0.5, phip=0.5, phig=0.5, maxiter=100, 
         minstep=1e-8, minfunc=1e-8, debug=False, processes=1,
-        particle_output=False):
+        particle_output=False, initial_pos=None):
     """
     Perform a particle swarm optimization (PSO)
    
@@ -74,6 +74,8 @@ def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
     particle_output : boolean
         Whether to include the best per-particle position and the objective
         values at those.
+    initial_pos : array
+        Initial position of the particals (Default: None)
    
     Returns
     =======
@@ -86,8 +88,9 @@ def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
     pf: arrray
         The objective values at each position in p
     f_list : dict
-             The objective values of each partical in iteration
-   
+             The objective values of each partical in each iteration
+    x_list : dict 
+             The position of f_list
     """
    
     assert len(lb)==len(ub), 'Lower- and upper-bounds must be the same length'
@@ -139,6 +142,13 @@ def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
     
     # Initialize the particle's position
     x = lb + x*(ub - lb)
+    
+    if initial_pos is not None:
+        if len(initial_pos) > S:
+            sys.exit('== Error: The size of customer defined initial points is bigger than swarmsize. Exiting now...')
+        else:
+            for i in range(len(initial_pos)):
+                x[i] = initial_pos[i]
 
     # Calculate objective and constraints for each particle
     if processes > 1:
