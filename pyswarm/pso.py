@@ -85,6 +85,8 @@ def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
         The best known position per particle
     pf: arrray
         The objective values at each position in p
+    f_list : dict
+             The objective values of each partical in iteration
    
     """
    
@@ -132,6 +134,8 @@ def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
     fp = np.ones(S)*np.inf  # best particle function values
     g = []  # best swarm position
     fg = np.inf  # best swarm position starting value
+    f_list = {} # all fx in each iteration
+    x_list = {} # all x in each iteration
     
     # Initialize the particle's position
     x = lb + x*(ub - lb)
@@ -144,6 +148,11 @@ def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
         for i in range(S):
             fx[i] = obj(x[i, :])
             fs[i] = is_feasible(x[i, :])
+    
+    f_list[0] = []
+    f_list[0] = fx
+    x_list[0] = []
+    x_list[0] = x
        
     # Store particle's best position (if constraints are satisfied)
     i_update = np.logical_and((fx < fp), fs)
@@ -166,6 +175,7 @@ def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
     # Iterate until termination criterion met ##################################
     it = 1
     while it <= maxiter:
+        x_list[it] = []
         rp = np.random.uniform(size=(S, D))
         rg = np.random.uniform(size=(S, D))
 
@@ -178,6 +188,10 @@ def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
         masku = x > ub
         x = x*(~np.logical_or(maskl, masku)) + lb*maskl + ub*masku
 
+        x_list[it] = x
+        
+        f_list[it] = []
+
         # Update objectives and constraints
         if processes > 1:
             fx = np.array(mp_pool.map(obj, x))
@@ -186,6 +200,8 @@ def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
             for i in range(S):
                 fx[i] = obj(x[i, :])
                 fs[i] = is_feasible(x[i, :])
+                
+        f_list[it] = fx
 
         # Store particle's best position (if constraints are satisfied)
         i_update = np.logical_and((fx < fp), fs)
@@ -196,39 +212,39 @@ def pso(func, lb, ub, ieqcons=[], f_ieqcons=None, args=(), kwargs={},
         i_min = np.argmin(fp)
         if fp[i_min] < fg:
             if debug:
-                print('New best for swarm at iteration {:}: {:} {:}'\
-                    .format(it, p[i_min, :], fp[i_min]))
+                print(('New best for swarm at iteration {:}: {:} {:}'\
+                    .format(it, p[i_min, :], fp[i_min])))
 
             p_min = p[i_min, :].copy()
             stepsize = np.sqrt(np.sum((g - p_min)**2))
 
             if np.abs(fg - fp[i_min]) <= minfunc:
-                print('Stopping search: Swarm best objective change less than {:}'\
-                    .format(minfunc))
+                print(('Stopping search: Swarm best objective change less than {:}'\
+                    .format(minfunc)))
                 if particle_output:
-                    return p_min, fp[i_min], p, fp
+                    return p_min, fp[i_min], p, fp, f_list, x_list
                 else:
-                    return p_min, fp[i_min]
+                    return p_min, fp[i_min], f_list, x_list
             elif stepsize <= minstep:
-                print('Stopping search: Swarm best position change less than {:}'\
-                    .format(minstep))
+                print(('Stopping search: Swarm best position change less than {:}'\
+                    .format(minstep)))
                 if particle_output:
-                    return p_min, fp[i_min], p, fp
+                    return p_min, fp[i_min], p, fp, f_list, x_list
                 else:
-                    return p_min, fp[i_min]
+                    return p_min, fp[i_min], f_list, x_list
             else:
                 g = p_min.copy()
                 fg = fp[i_min]
 
         if debug:
-            print('Best after iteration {:}: {:} {:}'.format(it, g, fg))
+            print(('Best after iteration {:}: {:} {:}'.format(it, g, fg)))
         it += 1
 
-    print('Stopping search: maximum iterations reached --> {:}'.format(maxiter))
+    print(('Stopping search: maximum iterations reached --> {:}'.format(maxiter)))
     
     if not is_feasible(g):
         print("However, the optimization couldn't find a feasible design. Sorry")
     if particle_output:
-        return g, fg, p, fp
+        return g, fg, p, fp, f_list, x_list
     else:
-        return g, fg
+        return g, fg, f_list, x_list
